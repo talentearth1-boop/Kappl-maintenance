@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#8a3b2e">
+<title>Silk Plant Maintenance</title>
+<style>
+:root{--bg:#f6f3ee;--card:#fff;--tx:#1d1b18;--mu:#7a746b;--bd:#e4ded3;--ac:#8a3b2e;--ok:#2e7d4f;--wa:#c27a0a;--er:#c0392b}
+@media (prefers-color-scheme:dark){:root{--bg:#171513;--card:#232019;--tx:#f1ece3;--mu:#a39b8e;--bd:#38332a;--ac:#e0866f;--ok:#5cc08a;--wa:#e8a83c;--er:#ef6b5b}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--tx);font:15px/1.4 system-ui,-apple-system,Segoe UI,Roboto,sans-serif;padding:env(safe-area-inset-top) 0 80px}
+header{padding:16px 16px 8px}h1{font-size:20px;margin:0}.sub{color:var(--mu);font-size:13px}
+main{padding:0 12px}.sum{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:8px 0 12px}
+.sum div{background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:10px;text-align:center}
+.sum b{display:block;font-size:22px}.sum span{font-size:12px;color:var(--mu)}
+.card{background:var(--card);border:1px solid var(--bd);border-radius:14px;padding:12px;margin-bottom:10px}
+.row{display:flex;justify-content:space-between;align-items:center;gap:8px}.tap{cursor:pointer}.name{font-weight:600}.mu{color:var(--mu);font-size:13px}
+.pill{font-size:12px;padding:2px 9px;border-radius:99px;color:#fff;white-space:nowrap}.ok{background:var(--ok)}.wa{background:var(--wa)}.er{background:var(--er)}
+button,.btn{font:inherit;border:0;border-radius:10px;padding:9px 14px;background:var(--ac);color:#fff;display:inline-block}
+button.g{background:transparent;color:var(--ac);border:1px solid var(--ac)}button.sm{padding:5px 10px;font-size:13px}
+input,select,textarea{width:100%;font:inherit;padding:10px;border-radius:10px;border:1px solid var(--bd);background:var(--bg);color:var(--tx);margin:4px 0 10px}
+label{font-size:13px;color:var(--mu)}h2{font-size:16px;margin:14px 4px 8px}
+nav{position:fixed;bottom:0;left:0;right:0;display:flex;background:var(--card);border-top:1px solid var(--bd);padding-bottom:env(safe-area-inset-bottom)}
+nav button{flex:1;background:none;color:var(--mu);border-radius:0;padding:14px}nav button.on{color:var(--ac);font-weight:700}
+.th{width:72px;height:72px;object-fit:cover;border-radius:8px;margin:6px 6px 0 0;border:1px solid var(--bd)}
+#toast{position:fixed;left:12px;right:12px;bottom:80px;background:var(--tx);color:var(--bg);padding:10px;border-radius:10px;text-align:center;display:none;z-index:50}
+</style></head><body>
+<header><h1>🧵 Plant Maintenance</h1><div class="sub" id="sub">Cocoon to yarn · Silk plant</div></header>
+<main id="app"></main><div id="toast"></div>
+<nav><button data-t="home">Assets</button><button data-t="issues">Breakdowns</button><button data-t="hist">History</button></nav>
+<script>
+const URL_="https://qobaaufupikvfcybqgdh.supabase.co",KEY="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFvYmFhdWZ1cGlrdmZjeWJxZ2RoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTI4NDExMjQsImV4cCI6MjEwODQxNzEyNH0.LWhdUg-BdNmva01lyaL-PPt2TX6FlxEbJqKLphpgvAg";
+const H={apikey:KEY,Authorization:"Bearer "+KEY};
+async function api(path,opt={}){const r=await fetch(URL_+path,Object.assign({},opt,{headers:Object.assign({},H,opt.headers||{})}));if(!r.ok)throw new Error((await r.text()).slice(0,120));return r.status==204?null:r.text().then(t=>t?JSON.parse(t):null)}
+const A=[
+{id:1,n:"1000 kVA Transformer",q:1,i:"⚡",t:[["Oil level & leakage check",1],["Winding / oil temperature reading",1],["Silica gel colour check",7],["Bushing & terminal cleaning, tightness",30],["Oil BDV test",180]]},
+{id:2,n:"LT Panel",q:1,i:"🔌",t:[["Voltage / current / PF reading",1],["APFC & capacitor bank check",30],["Thermography of busbars & joints",30],["Cleaning & terminal tightening",90],["ACB / MCCB operation test",180]]},
+{id:3,n:"500 kVA DG Set",q:1,i:"🛢️",t:[["Engine oil, coolant, fuel level",1],["Battery & charger check",7],["15 min no-load run",7],["Engine oil & filter change",90],["Alternator insulation test",180]]},
+{id:4,n:"10 Tonne Cocoon Dryer",q:1,i:"♨️",t:[["Burner / heater & blower check",1],["Belt / chain lubrication",7],["Clean trays & air ducts",7],["Fan bearing greasing",30],["Temperature sensor calibration",30]]},
+{id:5,n:"5 Tonne Cocoon Dryer",q:1,i:"♨️",t:[["Burner / heater & blower check",1],["Belt / chain lubrication",7],["Clean trays & air ducts",7],["Fan bearing greasing",30],["Temperature sensor calibration",30]]},
+{id:6,n:"Thermax Boiler 6 TPH",q:2,i:"🔥",t:[["Water level gauge & blow-down",1],["Safety valve test",7],["Feed pump & pressure gauge check",7],["Tube cleaning / descaling",90],["Statutory IBR inspection",365]]},
+{id:7,n:"Automatic Reeling Machine",q:10,i:"🧶",t:[["Clean baths, nozzles & feelers",1],["Sensor & feeler check",7],["Lubrication of moving parts",7],["Pump & heater check",30],["Gear / belt inspection",30]]},
+{id:8,n:"Re-reeling Machine",q:10,i:"🎞️",t:[["Lubrication",7],["Swift & traverse inspection",7],["Belt & pulley check",30],["Motor & bearing check",30]]},
+{id:9,n:"Packing Machine",q:2,i:"📦",t:[["Sealing / strapping check",1],["Lubrication",7],["Safety guard check",30],["Pneumatic line check",30]]}];
+let D={done:{},issues:[],log:[]},tab="home",sel=null,form=false,pre=1,imgs=[],busy=false;
+const DAY=864e5,key=(a,i)=>a+"_"+i,f=d=>new Date(d).toLocaleDateString(undefined,{day:"numeric",month:"short"});
+const esc=s=>String(s==null?"":s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const fq=d=>d==1?"Daily":d==7?"Weekly":d==30?"Monthly":d==90?"Quarterly":d==180?"6-monthly":"Yearly";
+const lab=["ok","wa","er"],txt=["Healthy","Due soon","Overdue"];
+function msg(t){const m=document.getElementById("toast");m.textContent=t;m.style.display=t?"block":"none";if(t)setTimeout(()=>m.style.display="none",3500)}
+const er=e=>msg("Error: "+(e.message||e));
+function st(a,i,fr){const d=D.done[key(a,i)];if(!d)return{s:"er",l:"Never done",v:2};const age=(Date.now()-new Date(d))/DAY;
+if(age>fr)return{s:"er",l:"Overdue",v:2};if(age>fr*.8||fr===1&&age>.8)return{s:"wa",l:"Due soon",v:1};return{s:"ok",l:"OK",v:0}}
+const astat=a=>a.t.reduce((w,t,i)=>Math.max(w,st(a.id,i,t[1]).v),0);
+const hrs=ms=>{const m=Math.max(0,Math.round(ms/6e4));return Math.floor(m/60)+"h "+m%60+"m"};
+const dt=x=>x.restored_at?hrs(new Date(x.restored_at)-new Date(x.started_at)):"Ongoing "+hrs(Date.now()-new Date(x.started_at));
+const loc=d=>new Date(d-d.getTimezoneOffset()*6e4).toISOString().slice(0,16);
+async function load(){try{const [d,l,b]=await Promise.all([api("/rest/v1/task_done?select=*"),api("/rest/v1/activity_log?select=*&order=at.desc&limit=60"),api("/rest/v1/breakdowns?select=*&order=started_at.desc&limit=100")]);
+D.done={};d.forEach(x=>D.done[x.key]=x.done_at);D.log=l;D.issues=b;render()}catch(e){er(e)}}
+async function logit(m){await api("/rest/v1/activity_log",{method:"POST",headers:{"Content-Type":"application/json",Prefer:"return=minimal"},body:JSON.stringify({message:m})})}
+async function done(a,i){const as=A.find(x=>x.id==a),n=new Date().toISOString();D.done[key(a,i)]=n;render();
+try{await api("/rest/v1/task_done",{method:"POST",headers:{"Content-Type":"application/json",Prefer:"resolution=merge-duplicates,return=minimal"},body:JSON.stringify({key:key(a,i),done_at:n,done_by:localStorage.getItem("tech")||null})});await logit(as.n+" — "+as.t[i][0]+(localStorage.getItem("tech")?" ("+localStorage.getItem("tech")+")":""));load()}catch(e){er(e)}}
+function openForm(p){form=true;pre=p;tab="issues";sel=null;render();scrollTo(0,0)}
+function closeForm(){imgs=[];form=false;render()}
+function pick(inp){const fl=[...inp.files];if(!fl.length)return;if(imgs.length>=3){msg("Maximum 3 photos");inp.value="";return}
+fl.slice(0,3-imgs.length).forEach(file=>{const u=URL.createObjectURL(file),im=new Image();im.onload=()=>{const k=Math.min(1,900/Math.max(im.width,im.height)),c=document.createElement("canvas");c.width=Math.round(im.width*k);c.height=Math.round(im.height*k);c.getContext("2d").drawImage(im,0,0,c.width,c.height);c.toBlob(b=>{imgs.push({b,u:URL.createObjectURL(b)});prev()},"image/jpeg",.7);URL.revokeObjectURL(u)};im.onerror=()=>msg("Could not read this photo");im.src=u});inp.value=""}
+function prev(){const p=document.getElementById("pv");if(p)p.innerHTML=imgs.map((s,i)=>`<img class="th" src="${s.u}" onclick="imgs.splice(${i},1);prev()">`).join("")}
+function big(s){const o=document.createElement("div");o.style.cssText="position:fixed;inset:0;background:#000e;display:flex;align-items:center;justify-content:center;z-index:99";o.innerHTML=`<img src="${s}" style="max-width:100%;max-height:100%">`;o.onclick=()=>o.remove();document.body.appendChild(o)}
+async function addIssue(){if(busy)return;const d=fd.value.trim();if(!d){fd.focus();return}busy=true;msg("Saving…");
+try{const urls=[];for(const m of imgs){const nm=Date.now()+"_"+Math.random().toString(36).slice(2,8)+".jpg";await api("/storage/v1/object/breakdown-photos/"+nm,{method:"POST",headers:{"Content-Type":"image/jpeg"},body:m.b});urls.push(URL_+"/storage/v1/object/public/breakdown-photos/"+nm)}
+const a=A.find(x=>x.id==fa.value),tech=ft.value.trim();if(tech)localStorage.setItem("tech",tech);
+await api("/rest/v1/breakdowns",{method:"POST",headers:{"Content-Type":"application/json",Prefer:"return=minimal"},body:JSON.stringify({equipment:a.n,unit:fu.value.trim()||null,priority:fp.value,btype:fty.value,description:d,root_cause:fc.value.trim()||null,action_taken:fac.value.trim()||null,technician:tech||null,started_at:fs.value?new Date(fs.value).toISOString():new Date().toISOString(),restored_at:fe.value?new Date(fe.value).toISOString():null,spares:fsp.value.trim()||null,photos:urls})});
+imgs=[];form=false;msg("Saved");await load()}catch(e){er(e)}busy=false}
+async function closeI(id){const x=D.issues.find(y=>y.id==id),ac=(document.getElementById("ac"+id)||{}).value||"",n=new Date().toISOString();
+try{await api("/rest/v1/breakdowns?id=eq."+id,{method:"PATCH",headers:{"Content-Type":"application/json",Prefer:"return=minimal"},body:JSON.stringify({restored_at:n,action_taken:ac.trim()||x.action_taken})});await logit("Resolved: "+x.equipment+" — "+x.description);load()}catch(e){er(e)}}
+function render(){document.querySelectorAll("nav button").forEach(b=>b.classList.toggle("on",b.dataset.t==tab));
+if(form&&tab=="issues"&&document.getElementById("fd"))return;const el=document.getElementById("app");let h="";
+if(tab=="home"&&!sel){const c=[0,0,0];A.forEach(a=>c[astat(a)]++);const open=D.issues.filter(x=>!x.restored_at).length;
+h+=`<div class="sum"><div><b style="color:var(--ok)">${c[0]}</b><span>Healthy</span></div><div><b style="color:var(--wa)">${c[1]}</b><span>Due soon</span></div><div><b style="color:var(--er)">${c[2]}</b><span>Overdue</span></div></div>`;
+if(open)h+=`<div class="card tap" style="border-color:var(--er)" onclick="tab='issues';render()">⚠️ ${open} open breakdown${open>1?"s":""}</div>`;
+A.forEach(a=>{const v=astat(a),n=a.t.filter((t,i)=>st(a.id,i,t[1]).v>0).length;
+h+=`<div class="card tap row" onclick="sel=${a.id};render()"><div><div class="name">${a.i} ${a.n}</div><div class="mu">${a.q>1?a.q+" units · ":""}${n} task${n!=1?"s":""} pending</div></div><span class="pill ${lab[v]}">${txt[v]}</span></div>`})}
+else if(tab=="home"){const a=A.find(x=>x.id==sel);
+h+=`<div class="row" style="margin:8px 0"><button class="g sm" onclick="sel=null;render()">← Back</button><button class="sm" onclick="openForm(${a.id})">Report issue</button></div><h2>${a.i} ${a.n}${a.q>1?" ("+a.q+" units)":""}</h2>`;
+a.t.forEach((t,i)=>{const s=st(a.id,i,t[1]),d=D.done[key(a.id,i)];
+h+=`<div class="card"><div class="row"><div><div class="name">${t[0]}</div><div class="mu">${fq(t[1])} · ${d?"Last: "+f(d):"Not recorded"}</div></div><span class="pill ${s.s}">${s.l}</span></div><button class="sm" style="margin-top:8px" onclick="done(${a.id},${i})">✓ Mark done</button></div>`})}
+else if(tab=="issues"){
+if(form){h+=`<div class="card"><label>Equipment</label><select id="fa">${A.map(a=>`<option value="${a.id}" ${a.id==pre?"selected":""}>${a.n}</option>`).join("")}</select>
+<label>Unit no. (if multiple)</label><input id="fu" placeholder="e.g. Machine 4">
+<label>Priority</label><select id="fp"><option>High</option><option selected>Medium</option><option>Low</option></select>
+<label>Breakdown type</label><select id="fty"><option>Mechanical</option><option>Electrical</option><option>Instrumentation</option><option>Utility (steam / air / water)</option><option>Other</option></select>
+<label>Problem</label><textarea id="fd" rows="3" placeholder="What happened?"></textarea>
+<label>Root cause (if known)</label><input id="fc"><label>Action taken</label><input id="fac">
+<label>Technician name</label><input id="ft" value="${esc(localStorage.getItem("tech")||"")}">
+<label>Breakdown started</label><input id="fs" type="datetime-local" value="${loc(new Date())}">
+<label>Machine restored (leave blank if still down)</label><input id="fe" type="datetime-local">
+<label>Spares used (name & qty)</label><input id="fsp" placeholder="e.g. Bearing 6205 ×2, V-belt B52 ×1">
+<label>Photos (up to 3) – tap a photo to remove it</label>
+<label for="ph" class="btn" style="width:100%;text-align:center;color:#fff;font-size:15px;margin:4px 0 6px">📷 Add photo</label><input id="ph" type="file" accept="image/*" onchange="pick(this)" style="position:absolute;opacity:0;width:1px;height:1px">
+<div id="pv" style="margin-bottom:10px">${imgs.map((s,i)=>`<img class="th" src="${s.u}" onclick="imgs.splice(${i},1);prev()">`).join("")}</div>
+<div class="row"><button class="g" onclick="closeForm()">Cancel</button><button onclick="addIssue()">Save</button></div></div>`}
+else h+=`<div style="margin:8px 0"><button onclick="openForm(1)">+ Report breakdown</button></div>`;
+if(!D.issues.length&&!form)h+=`<div class="card mu">No breakdowns logged.</div>`;
+D.issues.forEach(x=>{const cl=!!x.restored_at;
+h+=`<div class="card"><div class="row"><div class="name">${esc(x.equipment)}${x.unit?" · "+esc(x.unit):""}</div><span class="pill ${cl?"ok":x.priority=="High"?"er":"wa"}">${cl?"Closed":esc(x.priority)}</span></div>
+<div>${esc(x.description)}</div><div class="mu">${f(x.started_at)}${x.technician?" · by "+esc(x.technician):""}</div>
+<div class="mu">⏱ Downtime: ${dt(x)}</div>${x.btype?`<div class="mu">Type: ${esc(x.btype)}</div>`:""}${x.root_cause?`<div class="mu">Cause: ${esc(x.root_cause)}</div>`:""}${x.action_taken?`<div class="mu">Action: ${esc(x.action_taken)}</div>`:""}${x.spares?`<div class="mu">🔩 Spares: ${esc(x.spares)}</div>`:""}
+<div>${(x.photos||[]).map(s=>`<img class="th" src="${esc(s)}" onclick="big(this.src)">`).join("")}</div>
+${cl?"":`<input id="ac${x.id}" placeholder="Action taken to fix (optional)" style="margin-top:8px"><button class="sm" onclick="closeI(${x.id})">Mark resolved</button>`}</div>`})}
+else{h+=`<h2>Recent maintenance</h2>`;if(!D.log.length)h+=`<div class="card mu">Nothing recorded yet.</div>`;
+D.log.forEach(x=>h+=`<div class="card"><div>${esc(x.message)}</div><div class="mu">${new Date(x.at).toLocaleString(undefined,{day:"numeric",month:"short",hour:"2-digit",minute:"2-digit"})}</div></div>`)}
+el.innerHTML=h}
+document.querySelectorAll("nav button").forEach(b=>b.onclick=()=>{tab=b.dataset.t;sel=null;form=false;imgs=[];render();scrollTo(0,0)});
+window.onerror=m=>msg("Error: "+m);render();load();setInterval(load,20000);
+</script></body></html>
