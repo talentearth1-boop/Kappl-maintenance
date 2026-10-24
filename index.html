@@ -26,7 +26,7 @@ nav button{flex:1;background:none;color:var(--mu);border-radius:0;padding:14px}n
 </style></head><body>
 <header><h1>🧵 Plant Maintenance</h1><div class="sub" id="sub">Cocoon to yarn · Silk plant</div></header>
 <main id="app"></main><div id="toast"></div>
-<nav><button data-t="home">Assets</button><button data-t="issues">Breakdowns</button><button data-t="hist">History</button></nav>
+<nav><button data-t="today">Today</button><button data-t="home">Assets</button><button data-t="issues">Breakdowns</button><button data-t="hist">History</button></nav>
 <script>
 const URL_="https://qobaaufupikvfcybqgdh.supabase.co",KEY="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFvYmFhdWZ1cGlrdmZjeWJxZ2RoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTI4NDExMjQsImV4cCI6MjEwODQxNzEyNH0.LWhdUg-BdNmva01lyaL-PPt2TX6FlxEbJqKLphpgvAg";
 const H={apikey:KEY,Authorization:"Bearer "+KEY};
@@ -41,7 +41,8 @@ const A=[
 {id:7,n:"Automatic Reeling Machine",q:10,i:"🧶",t:[["Clean baths, nozzles & feelers",1],["Sensor & feeler check",7],["Lubrication of moving parts",7],["Pump & heater check",30],["Gear / belt inspection",30]]},
 {id:8,n:"Re-reeling Machine",q:10,i:"🎞️",t:[["Lubrication",7],["Swift & traverse inspection",7],["Belt & pulley check",30],["Motor & bearing check",30]]},
 {id:9,n:"Packing Machine",q:2,i:"📦",t:[["Sealing / strapping check",1],["Lubrication",7],["Safety guard check",30],["Pneumatic line check",30]]}];
-let D={done:{},issues:[],log:[]},tab="home",sel=null,form=false,pre=1,imgs=[],busy=false;
+const today=()=>new Date().toLocaleDateString("en-CA");
+let D={done:{},issues:[],log:[],checks:{}},tab="today",sel=null,form=false,pre=1,imgs=[],busy=false;
 const DAY=864e5,key=(a,i)=>a+"_"+i,f=d=>new Date(d).toLocaleDateString(undefined,{day:"numeric",month:"short"});
 const esc=s=>String(s==null?"":s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 const fq=d=>d==1?"Daily":d==7?"Weekly":d==30?"Monthly":d==90?"Quarterly":d==180?"6-monthly":"Yearly";
@@ -54,11 +55,19 @@ const astat=a=>a.t.reduce((w,t,i)=>Math.max(w,st(a.id,i,t[1]).v),0);
 const hrs=ms=>{const m=Math.max(0,Math.round(ms/6e4));return Math.floor(m/60)+"h "+m%60+"m"};
 const dt=x=>x.restored_at?hrs(new Date(x.restored_at)-new Date(x.started_at)):"Ongoing "+hrs(Date.now()-new Date(x.started_at));
 const loc=d=>new Date(d-d.getTimezoneOffset()*6e4).toISOString().slice(0,16);
-async function load(){try{const [d,l,b]=await Promise.all([api("/rest/v1/task_done?select=*"),api("/rest/v1/activity_log?select=*&order=at.desc&limit=60"),api("/rest/v1/breakdowns?select=*&order=started_at.desc&limit=100")]);
+async function load(){try{const [d,l,b,c]=await Promise.all([api("/rest/v1/task_done?select=*"),api("/rest/v1/activity_log?select=*&order=at.desc&limit=60"),api("/rest/v1/breakdowns?select=*&order=started_at.desc&limit=100"),api("/rest/v1/daily_checks?select=*&check_date=eq."+today())]);D.checks={};c.forEach(x=>D.checks[x.key]=x);
 D.done={};d.forEach(x=>D.done[x.key]=x.done_at);D.log=l;D.issues=b;render()}catch(e){er(e)}}
 async function logit(m){await api("/rest/v1/activity_log",{method:"POST",headers:{"Content-Type":"application/json",Prefer:"return=minimal"},body:JSON.stringify({message:m})})}
 async function done(a,i){const as=A.find(x=>x.id==a),n=new Date().toISOString();D.done[key(a,i)]=n;render();
 try{await api("/rest/v1/task_done",{method:"POST",headers:{"Content-Type":"application/json",Prefer:"resolution=merge-duplicates,return=minimal"},body:JSON.stringify({key:key(a,i),done_at:n,done_by:localStorage.getItem("tech")||null})});await logit(as.n+" — "+as.t[i][0]+(localStorage.getItem("tech")?" ("+localStorage.getItem("tech")+")":""));load()}catch(e){er(e)}}
+async function tick(a,i){const k=key(a,i),n=new Date().toISOString(),who=localStorage.getItem("tech")||null;D.checks[k]={key:k,checked_at:n,checked_by:who};render();
+try{await api("/rest/v1/daily_checks?on_conflict=check_date,key",{method:"POST",headers:{"Content-Type":"application/json",Prefer:"resolution=ignore-duplicates,return=minimal"},body:JSON.stringify({check_date:today(),key:k,checked_by:who,checked_at:n})});await done(a,i)}catch(e){delete D.checks[k];render();er(e)}}
+function todayHTML(){let tot=0,dn=0,h="";A.forEach(a=>a.t.forEach((t,i)=>{if(t[1]==1){tot++;if(D.checks[key(a.id,i)])dn++}}));const pc=tot?Math.round(dn*100/tot):0;
+h+=`<div class="card"><div class="row"><div class="name">Daily checklist</div><div class="mu">${new Date().toLocaleDateString(undefined,{weekday:"long",day:"numeric",month:"short"})}</div></div><div class="mu" style="margin-top:6px">Checked by</div><input id="who" value="${esc(localStorage.getItem("tech")||"")}" placeholder="Your name" onchange="localStorage.setItem('tech',this.value.trim())"><div style="height:8px;background:var(--bd);border-radius:9px"><div style="height:8px;width:${pc}%;background:var(--ok);border-radius:9px"></div></div><div class="mu" style="margin-top:4px">${dn} of ${tot} done (${pc}%)</div></div>`;
+A.forEach(a=>{const rows=a.t.map((t,i)=>[t,i]).filter(x=>x[0][1]==1);if(!rows.length)return;
+h+=`<div class="card"><div class="row"><div class="name">${a.i} ${a.n}</div><button class="g sm" onclick="openForm(${a.id})">Issue</button></div>`;
+rows.forEach(([t,i])=>{const c=D.checks[key(a.id,i)];
+h+=`<label style="display:flex;gap:10px;align-items:center;padding:9px 0;border-top:1px solid var(--bd);font-size:15px;color:var(--tx)"><input type="checkbox" style="width:22px;height:22px;margin:0;flex:none" ${c?"checked disabled":""} onchange="tick(${a.id},${i})"><span style="flex:1">${t[0]}${c?`<div class="mu">✓ ${new Date(c.checked_at).toLocaleTimeString(undefined,{hour:"2-digit",minute:"2-digit"})}${c.checked_by?" · "+esc(c.checked_by):""}</div>`:""}</span></label>`});h+=`</div>`});return h}
 function openForm(p){form=true;pre=p;tab="issues";sel=null;render();scrollTo(0,0)}
 function closeForm(){imgs=[];form=false;render()}
 function pick(inp){const fl=[...inp.files];if(!fl.length)return;if(imgs.length>=3){msg("Maximum 3 photos");inp.value="";return}
@@ -73,8 +82,8 @@ imgs=[];form=false;msg("Saved");await load()}catch(e){er(e)}busy=false}
 async function closeI(id){const x=D.issues.find(y=>y.id==id),ac=(document.getElementById("ac"+id)||{}).value||"",n=new Date().toISOString();
 try{await api("/rest/v1/breakdowns?id=eq."+id,{method:"PATCH",headers:{"Content-Type":"application/json",Prefer:"return=minimal"},body:JSON.stringify({restored_at:n,action_taken:ac.trim()||x.action_taken})});await logit("Resolved: "+x.equipment+" — "+x.description);load()}catch(e){er(e)}}
 function render(){document.querySelectorAll("nav button").forEach(b=>b.classList.toggle("on",b.dataset.t==tab));
-if(form&&tab=="issues"&&document.getElementById("fd"))return;const el=document.getElementById("app");let h="";
-if(tab=="home"&&!sel){const c=[0,0,0];A.forEach(a=>c[astat(a)]++);const open=D.issues.filter(x=>!x.restored_at).length;
+if(form&&tab=="issues"&&document.getElementById("fd")||document.activeElement&&document.activeElement.id=="who")return;const el=document.getElementById("app");let h="";
+if(tab=="today"){h+=todayHTML()}else if(tab=="home"&&!sel){const c=[0,0,0];A.forEach(a=>c[astat(a)]++);const open=D.issues.filter(x=>!x.restored_at).length;
 h+=`<div class="sum"><div><b style="color:var(--ok)">${c[0]}</b><span>Healthy</span></div><div><b style="color:var(--wa)">${c[1]}</b><span>Due soon</span></div><div><b style="color:var(--er)">${c[2]}</b><span>Overdue</span></div></div>`;
 if(open)h+=`<div class="card tap" style="border-color:var(--er)" onclick="tab='issues';render()">⚠️ ${open} open breakdown${open>1?"s":""}</div>`;
 A.forEach(a=>{const v=astat(a),n=a.t.filter((t,i)=>st(a.id,i,t[1]).v>0).length;
