@@ -66,7 +66,7 @@ const hrs=ms=>{const m=Math.max(0,Math.round(ms/6e4));return Math.floor(m/60)+"h
 const dt=x=>x.restored_at?hrs(new Date(x.restored_at)-new Date(x.started_at)):"Ongoing "+hrs(Date.now()-new Date(x.started_at));
 const loc=d=>new Date(d-d.getTimezoneOffset()*6e4).toISOString().slice(0,16);
 async function load(){try{const [d,l,b,c]=await Promise.all([api("/rest/v1/task_done?select=*"),api("/rest/v1/activity_log?select=*&order=at.desc&limit=60"),api("/rest/v1/breakdowns?select=*&order=started_at.desc&limit=100"),api("/rest/v1/daily_checks?select=*&check_date=eq."+today())]);D.checks={};c.forEach(x=>D.checks[x.key]=x);
-D.done={};d.forEach(x=>D.done[x.key]=x.done_at);D.log=l;D.issues=b;render()}catch(e){er(e)}}
+D.done={};d.forEach(x=>D.done[x.key]=x.done_at);D.log=l;D.issues=b;if(!document.querySelector("textarea[id^=rm_]"))render()}catch(e){er(e)}}
 async function logit(m){await api("/rest/v1/activity_log",{method:"POST",headers:{"Content-Type":"application/json",Prefer:"return=minimal"},body:JSON.stringify({message:m})})}
 async function done(a,i){const as=A.find(x=>x.id==a),n=new Date().toISOString();D.done[key(a,i)]=n;render();
 try{await api("/rest/v1/task_done",{method:"POST",headers:{"Content-Type":"application/json",Prefer:"resolution=merge-duplicates,return=minimal"},body:JSON.stringify({key:key(a,i),done_at:n,done_by:localStorage.getItem("tech")||null})});await logit(as.n+" — "+as.t[i][0]+(localStorage.getItem("tech")?" ("+localStorage.getItem("tech")+")":""));load()}catch(e){er(e)}}
@@ -75,16 +75,23 @@ let uSel={};
 const cnt=(a,u)=>DC[a.id].filter((_,i)=>D.checks[dk(a.id,u,i)]).length;
 const dailyDone=a=>{let s=0;for(let u=1;u<=a.q;u++)s+=cnt(a,u);return s+"/"+DC[a.id].length*a.q};
 function selU(a,u){uSel[a]=u;render()}
-async function tick(k){const n=new Date().toISOString(),who=localStorage.getItem("tech")||null;D.checks[k]={key:k,checked_at:n,checked_by:who};render();
-try{await api("/rest/v1/daily_checks?on_conflict=check_date,key",{method:"POST",headers:{"Content-Type":"application/json",Prefer:"resolution=ignore-duplicates,return=minimal"},body:JSON.stringify({check_date:today(),key:k,checked_by:who,checked_at:n})})}catch(e){delete D.checks[k];render();er(e)}}
-function todayHTML(){let tot=0,dn=0,h="";A.forEach(a=>{tot+=DC[a.id].length*a.q;for(let u=1;u<=a.q;u++)dn+=cnt(a,u)});const pc=tot?Math.round(dn*100/tot):0;
-h+=`<div class="card"><div class="row"><div class="name">Daily checklist</div><div class="mu">${new Date().toLocaleDateString(undefined,{weekday:"long",day:"numeric",month:"short"})}</div></div><div class="mu" style="margin-top:6px">Checked by</div><input id="who" value="${esc(localStorage.getItem("tech")||"")}" placeholder="Your name" onchange="localStorage.setItem('tech',this.value.trim())"><div style="height:8px;background:var(--bd);border-radius:9px"><div style="height:8px;width:${pc}%;background:var(--ok);border-radius:9px"></div></div><div class="mu" style="margin-top:4px">${dn} of ${tot} checks done (${pc}%)</div></div>`;
+let pend={};
+async function mark(k,st){const el=document.getElementById("rm_"+k),rm=st=="no"?((el||{}).value||"").trim():"";if(st=="no"&&!rm){msg("Please write a remark describing the problem");return}
+const n=new Date().toISOString(),who=localStorage.getItem("tech")||null;D.checks[k]={key:k,checked_at:n,checked_by:who,status:st,remark:rm||null};delete pend[k];if(el)el.remove();render();
+try{await api("/rest/v1/daily_checks?on_conflict=check_date,key",{method:"POST",headers:{"Content-Type":"application/json",Prefer:"resolution=ignore-duplicates,return=minimal"},body:JSON.stringify({check_date:today(),key:k,checked_by:who,checked_at:n,status:st,remark:rm||null})})}catch(e){delete D.checks[k];render();er(e)}}
+function askNo(k){pend[k]=1;render();setTimeout(()=>{const e=document.getElementById("rm_"+k);if(e)e.focus()},50)}
+function cancelNo(k){delete pend[k];const e=document.getElementById("rm_"+k);if(e)e.remove();render()}
+function todayHTML(){let tot=0,dn=0,h="";A.forEach(a=>{tot+=DC[a.id].length*a.q;for(let u=1;u<=a.q;u++)dn+=cnt(a,u)});const pc=tot?Math.round(dn*100/tot):0,bad=Object.values(D.checks).filter(c=>c.status=="no").length;
+h+=`<div class="card"><div class="row"><div class="name">Daily checklist</div><div class="mu">${new Date().toLocaleDateString(undefined,{weekday:"long",day:"numeric",month:"short"})}</div></div><div class="mu" style="margin-top:6px">Checked by</div><input id="who" value="${esc(localStorage.getItem("tech")||"")}" placeholder="Your name" onchange="localStorage.setItem('tech',this.value.trim())"><div style="height:8px;background:var(--bd);border-radius:9px"><div style="height:8px;width:${pc}%;background:var(--ok);border-radius:9px"></div></div><div class="mu" style="margin-top:4px">${dn} of ${tot} checks done (${pc}%)${bad?` · <b style="color:var(--er)">${bad} problem${bad>1?"s":""}</b>`:""}</div></div>`;
 A.forEach(a=>{const u=uSel[a.id]||1,n=DC[a.id].length;
 h+=`<div class="card"><div class="row"><div class="name">${a.i} ${a.n}</div><button class="g sm" onclick="openForm(${a.id})">Issue</button></div><div class="mu">${dailyDone(a)} done today${a.q>1?" · tap a unit":""}</div>`;
 if(a.q>1)h+=`<div style="display:flex;flex-wrap:wrap;gap:6px;margin:8px 0">`+Array.from({length:a.q},(_,j)=>j+1).map(x=>{const d=cnt(a,x)==n;return `<button class="sm ${x==u?"":"g"}" style="${d?"border-color:var(--ok);":""}" onclick="selU(${a.id},${x})">${d?"✓ ":""}Unit ${x}</button>`}).join("")+`</div>`;
 if(a.q>1)h+=`<div class="name" style="margin:6px 0 2px">Unit ${u}</div>`;
-DC[a.id].forEach((t,i)=>{const k=dk(a.id,u,i),c=D.checks[k];
-h+=`<label style="display:flex;gap:10px;align-items:center;padding:9px 0;border-top:1px solid var(--bd);font-size:15px;color:var(--tx)"><input type="checkbox" style="width:22px;height:22px;margin:0;flex:none" ${c?"checked disabled":""} onchange="tick('${k}')"><span style="flex:1">${t}${c?`<div class="mu">✓ ${new Date(c.checked_at).toLocaleTimeString(undefined,{hour:"2-digit",minute:"2-digit"})}${c.checked_by?" · "+esc(c.checked_by):""}</div>`:""}</span></label>`});h+=`</div>`});return h}
+DC[a.id].forEach((t,i)=>{const k=dk(a.id,u,i),c=D.checks[k];let r=`<div style="padding:9px 0;border-top:1px solid var(--bd)"><div style="font-size:15px">${t}</div>`;
+if(c){const ok=c.status!="no";r+=`<div class="row" style="margin-top:4px"><span class="pill ${ok?"ok":"er"}">${ok?"✓ OK":"✗ Not OK"}</span><span class="mu">${new Date(c.checked_at).toLocaleTimeString(undefined,{hour:"2-digit",minute:"2-digit"})}${c.checked_by?" · "+esc(c.checked_by):""}</span></div>`;if(!ok)r+=`<div style="color:var(--er);font-size:13px;margin-top:4px">Remark: ${esc(c.remark)}</div><button class="sm g" style="margin-top:6px" onclick="openForm(${a.id})">Report breakdown</button>`}
+else if(pend[k])r+=`<textarea id="rm_${k}" rows="2" placeholder="Remark: describe the problem" style="margin:6px 0"></textarea><div class="row"><button class="g sm" onclick="cancelNo('${k}')">Cancel</button><button class="sm" style="background:var(--er)" onclick="mark('${k}','no')">Save problem</button></div>`;
+else r+=`<div style="display:flex;gap:8px;margin-top:6px"><button style="flex:1;background:var(--ok)" onclick="mark('${k}','ok')">✓ OK</button><button style="flex:1;background:var(--er)" onclick="askNo('${k}')">✗ Not OK</button></div>`;
+h+=r+`</div>`});h+=`</div>`});return h}
 function openForm(p){form=true;pre=p;tab="issues";sel=null;render();scrollTo(0,0)}
 function closeForm(){imgs=[];form=false;render()}
 function pick(inp){const fl=[...inp.files];if(!fl.length)return;if(imgs.length>=3){msg("Maximum 3 photos");inp.value="";return}
@@ -121,7 +128,7 @@ if(form){h+=`<div class="card"><label>Equipment</label><select id="fa">${A.map(a
 <label>Machine restored (leave blank if still down)</label><input id="fe" type="datetime-local">
 <label>Spares used (name & qty)</label><input id="fsp" placeholder="e.g. Bearing 6205 ×2, V-belt B52 ×1">
 <label>Photos (up to 3) – tap a photo to remove it</label>
-<label for="ph" class="btn" style="width:100%;text-align:center;color:#fff;font-size:15px;margin:4px 0 6px">📷 Add photo</label><input id="ph" type="file" accept="image/*" onchange="pick(this)" style="position:absolute;opacity:0;width:1px;height:1px">
+<div style="display:flex;gap:8px;margin:4px 0 6px"><label for="ph1" class="btn" style="flex:1;text-align:center;color:#fff;font-size:15px">📷 Take picture</label><label for="ph2" class="btn" style="flex:1;text-align:center;color:var(--ac);background:transparent;border:1px solid var(--ac);font-size:15px">🖼️ Gallery</label></div><input id="ph1" type="file" accept="image/*" capture="environment" onchange="pick(this)" style="position:absolute;opacity:0;width:1px;height:1px"><input id="ph2" type="file" accept="image/*" onchange="pick(this)" style="position:absolute;opacity:0;width:1px;height:1px">
 <div id="pv" style="margin-bottom:10px">${imgs.map((s,i)=>`<img class="th" src="${s.u}" onclick="imgs.splice(${i},1);prev()">`).join("")}</div>
 <div class="row"><button class="g" onclick="closeForm()">Cancel</button><button onclick="addIssue()">Save</button></div></div>`}
 else h+=`<div style="margin:8px 0"><button onclick="openForm(1)">+ Report breakdown</button></div>`;
