@@ -32,15 +32,25 @@ const URL_="https://qobaaufupikvfcybqgdh.supabase.co",KEY="eyJhbGciOiJIUzI1NiIsI
 const H={apikey:KEY,Authorization:"Bearer "+KEY};
 async function api(path,opt={}){const r=await fetch(URL_+path,Object.assign({},opt,{headers:Object.assign({},H,opt.headers||{})}));if(!r.ok)throw new Error((await r.text()).slice(0,120));return r.status==204?null:r.text().then(t=>t?JSON.parse(t):null)}
 const A=[
-{id:1,n:"1000 kVA Transformer",q:1,i:"⚡",t:[["Oil level & leakage check",1],["Winding / oil temperature reading",1],["Silica gel colour check",7],["Bushing & terminal cleaning, tightness",30],["Oil BDV test",180]]},
-{id:2,n:"LT Panel",q:1,i:"🔌",t:[["Voltage / current / PF reading",1],["APFC & capacitor bank check",30],["Thermography of busbars & joints",30],["Cleaning & terminal tightening",90],["ACB / MCCB operation test",180]]},
-{id:3,n:"500 kVA DG Set",q:1,i:"🛢️",t:[["Engine oil, coolant, fuel level",1],["Battery & charger check",7],["15 min no-load run",7],["Engine oil & filter change",90],["Alternator insulation test",180]]},
-{id:4,n:"10 Tonne Cocoon Dryer",q:1,i:"♨️",t:[["Burner / heater & blower check",1],["Belt / chain lubrication",7],["Clean trays & air ducts",7],["Fan bearing greasing",30],["Temperature sensor calibration",30]]},
-{id:5,n:"5 Tonne Cocoon Dryer",q:1,i:"♨️",t:[["Burner / heater & blower check",1],["Belt / chain lubrication",7],["Clean trays & air ducts",7],["Fan bearing greasing",30],["Temperature sensor calibration",30]]},
-{id:6,n:"Thermax Boiler 6 TPH",q:2,i:"🔥",t:[["Water level gauge & blow-down",1],["Safety valve test",7],["Feed pump & pressure gauge check",7],["Tube cleaning / descaling",90],["Statutory IBR inspection",365]]},
-{id:7,n:"Automatic Reeling Machine",q:10,i:"🧶",t:[["Clean baths, nozzles & feelers",1],["Sensor & feeler check",7],["Lubrication of moving parts",7],["Pump & heater check",30],["Gear / belt inspection",30]]},
+{id:1,n:"1000 kVA Transformer",q:1,i:"⚡",t:[["Silica gel colour check",7],["Bushing & terminal cleaning, tightness",30],["Oil BDV test",180]]},
+{id:2,n:"LT Panel",q:1,i:"🔌",t:[["APFC & capacitor bank check",30],["Thermography of busbars & joints",30],["Cleaning & terminal tightening",90],["ACB / MCCB operation test",180]]},
+{id:3,n:"500 kVA DG Set",q:1,i:"🛢️",t:[["Battery & charger check",7],["15 min no-load run",7],["Engine oil & filter change",90],["Alternator insulation test",180]]},
+{id:4,n:"10 Tonne Cocoon Dryer",q:1,i:"♨️",t:[["Belt / chain lubrication",7],["Clean trays & air ducts",7],["Fan bearing greasing",30],["Temperature sensor calibration",30]]},
+{id:5,n:"5 Tonne Cocoon Dryer",q:1,i:"♨️",t:[["Belt / chain lubrication",7],["Clean trays & air ducts",7],["Fan bearing greasing",30],["Temperature sensor calibration",30]]},
+{id:6,n:"Thermax Boiler 6 TPH",q:2,i:"🔥",t:[["Safety valve test",7],["Feed pump & pressure gauge check",7],["Tube cleaning / descaling",90],["Statutory IBR inspection",365]]},
+{id:7,n:"Automatic Reeling Machine",q:10,i:"🧶",t:[["Sensor & feeler check",7],["Lubrication of moving parts",7],["Pump & heater check",30],["Gear / belt inspection",30]]},
 {id:8,n:"Re-reeling Machine",q:10,i:"🎞️",t:[["Lubrication",7],["Swift & traverse inspection",7],["Belt & pulley check",30],["Motor & bearing check",30]]},
-{id:9,n:"Packing Machine",q:2,i:"📦",t:[["Sealing / strapping check",1],["Lubrication",7],["Safety guard check",30],["Pneumatic line check",30]]}];
+{id:9,n:"Packing Machine",q:2,i:"📦",t:[["Lubrication",7],["Safety guard check",30],["Pneumatic line check",30]]}];
+const DC={
+1:["Oil level in conservator normal","No oil leakage at joints / radiator","Oil temperature recorded","Winding temperature recorded","Silica gel colour (blue/orange)","Buchholz / PRV – no alarm or trip","No abnormal noise or humming","Earthing & terminals intact"],
+2:["Incoming voltage R-Y-B normal","Load current within rating","Power factor / APFC working","Indicator lamps & meters working","No overheating smell or hot spots","Panel doors closed, area dry & clear","Fire extinguisher & rubber mat in place"],
+3:["Engine oil level","Coolant level","Diesel level in tank","Battery terminals & charger OK","No oil / fuel / coolant leaks","Fan belt tension","Control panel – no fault shown","Area clean, extinguisher in place"],
+4:["Burner / heater ignition normal","Blower & exhaust fan running smooth","Chamber temperature at set value","Trays / conveyor moving freely","Air ducts & door gasket – no leaks","Chain / bearing lubrication","No abnormal noise or vibration"],
+5:["Burner / heater ignition normal","Blower & exhaust fan running smooth","Chamber temperature at set value","Trays / conveyor moving freely","Air ducts & door gasket – no leaks","Chain / bearing lubrication","No abnormal noise or vibration"],
+6:["Gauge glass water level normal; gauge glass tested","Steam pressure within working limit – reading recorded","Feed water tank level & temperature normal","Feed pump running, pressure normal","Feed & boiler water tested (TDS, pH, hardness) – recorded","Bottom blow-down done","Low-water cut-off & high-pressure cut-out tested","Safety valves – no leakage","Wood fuel dry, stock adequate; feeder / conveyor running","Grate clean, clinker removed; ash removal done","FD / ID fan running smooth; furnace draft normal","Flue gas temperature recorded; dust collector / cyclone OK","No steam, water or flue gas leaks; insulation intact","Fire extinguisher in place; no wood stored near furnace"],
+7:["Basin water level & temperature","Nozzles & feelers cleaned","Sensors working","Cocoon feeding normal","Reeling pump & heater OK","Drive belts & gears OK","Lubrication done","No water leaks; machine clean"],
+8:["Swifts & traverse moving smooth","Belt & pulley tension","Motor not overheating","Thread guides & tension device clean","Stop motion working","Lubrication done","No abnormal noise; machine clean"],
+9:["Sealing temperature / strapping OK","Pneumatic pressure normal","Safety guards in place","Emergency stop tested","Lubrication done","Machine & area clean"]};
 const today=()=>new Date().toLocaleDateString("en-CA");
 let D={done:{},issues:[],log:[],checks:{}},tab="today",sel=null,form=false,pre=1,imgs=[],busy=false;
 const DAY=864e5,key=(a,i)=>a+"_"+i,f=d=>new Date(d).toLocaleDateString(undefined,{day:"numeric",month:"short"});
@@ -60,14 +70,21 @@ D.done={};d.forEach(x=>D.done[x.key]=x.done_at);D.log=l;D.issues=b;render()}catc
 async function logit(m){await api("/rest/v1/activity_log",{method:"POST",headers:{"Content-Type":"application/json",Prefer:"return=minimal"},body:JSON.stringify({message:m})})}
 async function done(a,i){const as=A.find(x=>x.id==a),n=new Date().toISOString();D.done[key(a,i)]=n;render();
 try{await api("/rest/v1/task_done",{method:"POST",headers:{"Content-Type":"application/json",Prefer:"resolution=merge-duplicates,return=minimal"},body:JSON.stringify({key:key(a,i),done_at:n,done_by:localStorage.getItem("tech")||null})});await logit(as.n+" — "+as.t[i][0]+(localStorage.getItem("tech")?" ("+localStorage.getItem("tech")+")":""));load()}catch(e){er(e)}}
-async function tick(a,i){const k=key(a,i),n=new Date().toISOString(),who=localStorage.getItem("tech")||null;D.checks[k]={key:k,checked_at:n,checked_by:who};render();
-try{await api("/rest/v1/daily_checks?on_conflict=check_date,key",{method:"POST",headers:{"Content-Type":"application/json",Prefer:"resolution=ignore-duplicates,return=minimal"},body:JSON.stringify({check_date:today(),key:k,checked_by:who,checked_at:n})});await done(a,i)}catch(e){delete D.checks[k];render();er(e)}}
-function todayHTML(){let tot=0,dn=0,h="";A.forEach(a=>a.t.forEach((t,i)=>{if(t[1]==1){tot++;if(D.checks[key(a.id,i)])dn++}}));const pc=tot?Math.round(dn*100/tot):0;
-h+=`<div class="card"><div class="row"><div class="name">Daily checklist</div><div class="mu">${new Date().toLocaleDateString(undefined,{weekday:"long",day:"numeric",month:"short"})}</div></div><div class="mu" style="margin-top:6px">Checked by</div><input id="who" value="${esc(localStorage.getItem("tech")||"")}" placeholder="Your name" onchange="localStorage.setItem('tech',this.value.trim())"><div style="height:8px;background:var(--bd);border-radius:9px"><div style="height:8px;width:${pc}%;background:var(--ok);border-radius:9px"></div></div><div class="mu" style="margin-top:4px">${dn} of ${tot} done (${pc}%)</div></div>`;
-A.forEach(a=>{const rows=a.t.map((t,i)=>[t,i]).filter(x=>x[0][1]==1);if(!rows.length)return;
-h+=`<div class="card"><div class="row"><div class="name">${a.i} ${a.n}</div><button class="g sm" onclick="openForm(${a.id})">Issue</button></div>`;
-rows.forEach(([t,i])=>{const c=D.checks[key(a.id,i)];
-h+=`<label style="display:flex;gap:10px;align-items:center;padding:9px 0;border-top:1px solid var(--bd);font-size:15px;color:var(--tx)"><input type="checkbox" style="width:22px;height:22px;margin:0;flex:none" ${c?"checked disabled":""} onchange="tick(${a.id},${i})"><span style="flex:1">${t[0]}${c?`<div class="mu">✓ ${new Date(c.checked_at).toLocaleTimeString(undefined,{hour:"2-digit",minute:"2-digit"})}${c.checked_by?" · "+esc(c.checked_by):""}</div>`:""}</span></label>`});h+=`</div>`});return h}
+const dk=(a,u,i)=>a+"_"+u+"_d"+i;
+let uSel={};
+const cnt=(a,u)=>DC[a.id].filter((_,i)=>D.checks[dk(a.id,u,i)]).length;
+const dailyDone=a=>{let s=0;for(let u=1;u<=a.q;u++)s+=cnt(a,u);return s+"/"+DC[a.id].length*a.q};
+function selU(a,u){uSel[a]=u;render()}
+async function tick(k){const n=new Date().toISOString(),who=localStorage.getItem("tech")||null;D.checks[k]={key:k,checked_at:n,checked_by:who};render();
+try{await api("/rest/v1/daily_checks?on_conflict=check_date,key",{method:"POST",headers:{"Content-Type":"application/json",Prefer:"resolution=ignore-duplicates,return=minimal"},body:JSON.stringify({check_date:today(),key:k,checked_by:who,checked_at:n})})}catch(e){delete D.checks[k];render();er(e)}}
+function todayHTML(){let tot=0,dn=0,h="";A.forEach(a=>{tot+=DC[a.id].length*a.q;for(let u=1;u<=a.q;u++)dn+=cnt(a,u)});const pc=tot?Math.round(dn*100/tot):0;
+h+=`<div class="card"><div class="row"><div class="name">Daily checklist</div><div class="mu">${new Date().toLocaleDateString(undefined,{weekday:"long",day:"numeric",month:"short"})}</div></div><div class="mu" style="margin-top:6px">Checked by</div><input id="who" value="${esc(localStorage.getItem("tech")||"")}" placeholder="Your name" onchange="localStorage.setItem('tech',this.value.trim())"><div style="height:8px;background:var(--bd);border-radius:9px"><div style="height:8px;width:${pc}%;background:var(--ok);border-radius:9px"></div></div><div class="mu" style="margin-top:4px">${dn} of ${tot} checks done (${pc}%)</div></div>`;
+A.forEach(a=>{const u=uSel[a.id]||1,n=DC[a.id].length;
+h+=`<div class="card"><div class="row"><div class="name">${a.i} ${a.n}</div><button class="g sm" onclick="openForm(${a.id})">Issue</button></div><div class="mu">${dailyDone(a)} done today${a.q>1?" · tap a unit":""}</div>`;
+if(a.q>1)h+=`<div style="display:flex;flex-wrap:wrap;gap:6px;margin:8px 0">`+Array.from({length:a.q},(_,j)=>j+1).map(x=>{const d=cnt(a,x)==n;return `<button class="sm ${x==u?"":"g"}" style="${d?"border-color:var(--ok);":""}" onclick="selU(${a.id},${x})">${d?"✓ ":""}Unit ${x}</button>`}).join("")+`</div>`;
+if(a.q>1)h+=`<div class="name" style="margin:6px 0 2px">Unit ${u}</div>`;
+DC[a.id].forEach((t,i)=>{const k=dk(a.id,u,i),c=D.checks[k];
+h+=`<label style="display:flex;gap:10px;align-items:center;padding:9px 0;border-top:1px solid var(--bd);font-size:15px;color:var(--tx)"><input type="checkbox" style="width:22px;height:22px;margin:0;flex:none" ${c?"checked disabled":""} onchange="tick('${k}')"><span style="flex:1">${t}${c?`<div class="mu">✓ ${new Date(c.checked_at).toLocaleTimeString(undefined,{hour:"2-digit",minute:"2-digit"})}${c.checked_by?" · "+esc(c.checked_by):""}</div>`:""}</span></label>`});h+=`</div>`});return h}
 function openForm(p){form=true;pre=p;tab="issues";sel=null;render();scrollTo(0,0)}
 function closeForm(){imgs=[];form=false;render()}
 function pick(inp){const fl=[...inp.files];if(!fl.length)return;if(imgs.length>=3){msg("Maximum 3 photos");inp.value="";return}
@@ -87,7 +104,7 @@ if(tab=="today"){h+=todayHTML()}else if(tab=="home"&&!sel){const c=[0,0,0];A.for
 h+=`<div class="sum"><div><b style="color:var(--ok)">${c[0]}</b><span>Healthy</span></div><div><b style="color:var(--wa)">${c[1]}</b><span>Due soon</span></div><div><b style="color:var(--er)">${c[2]}</b><span>Overdue</span></div></div>`;
 if(open)h+=`<div class="card tap" style="border-color:var(--er)" onclick="tab='issues';render()">⚠️ ${open} open breakdown${open>1?"s":""}</div>`;
 A.forEach(a=>{const v=astat(a),n=a.t.filter((t,i)=>st(a.id,i,t[1]).v>0).length;
-h+=`<div class="card tap row" onclick="sel=${a.id};render()"><div><div class="name">${a.i} ${a.n}</div><div class="mu">${a.q>1?a.q+" units · ":""}${n} task${n!=1?"s":""} pending</div></div><span class="pill ${lab[v]}">${txt[v]}</span></div>`})}
+h+=`<div class="card tap row" onclick="sel=${a.id};render()"><div><div class="name">${a.i} ${a.n}</div><div class="mu">${a.q>1?a.q+" units · ":""}${n} task${n!=1?"s":""} pending · Daily ${dailyDone(a)}</div></div><span class="pill ${lab[v]}">${txt[v]}</span></div>`})}
 else if(tab=="home"){const a=A.find(x=>x.id==sel);
 h+=`<div class="row" style="margin:8px 0"><button class="g sm" onclick="sel=null;render()">← Back</button><button class="sm" onclick="openForm(${a.id})">Report issue</button></div><h2>${a.i} ${a.n}${a.q>1?" ("+a.q+" units)":""}</h2>`;
 a.t.forEach((t,i)=>{const s=st(a.id,i,t[1]),d=D.done[key(a.id,i)];
