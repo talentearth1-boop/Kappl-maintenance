@@ -26,7 +26,7 @@ nav button{flex:1;background:none;color:var(--mu);border-radius:0;padding:14px}n
 </style></head><body>
 <header><h1>🧵 Plant Maintenance</h1><div class="sub" id="sub">Cocoon to yarn · Silk plant</div></header>
 <main id="app"></main><div id="toast"></div>
-<nav><button data-t="today">Today</button><button data-t="home">Assets</button><button data-t="issues">Breakdowns</button><button data-t="hist">History</button></nav>
+<nav><button data-t="today">Home</button><button data-t="home">Schedule</button><button data-t="issues">Breakdowns</button><button data-t="hist">History</button></nav>
 <script>
 const URL_="https://qobaaufupikvfcybqgdh.supabase.co",KEY="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFvYmFhdWZ1cGlrdmZjeWJxZ2RoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTI4NDExMjQsImV4cCI6MjEwODQxNzEyNH0.LWhdUg-BdNmva01lyaL-PPt2TX6FlxEbJqKLphpgvAg";
 const H={apikey:KEY,Authorization:"Bearer "+KEY};
@@ -71,7 +71,7 @@ async function logit(m){await api("/rest/v1/activity_log",{method:"POST",headers
 async function done(a,i){const as=A.find(x=>x.id==a),n=new Date().toISOString();D.done[key(a,i)]=n;render();
 try{await api("/rest/v1/task_done",{method:"POST",headers:{"Content-Type":"application/json",Prefer:"resolution=merge-duplicates,return=minimal"},body:JSON.stringify({key:key(a,i),done_at:n,done_by:localStorage.getItem("tech")||null})});await logit(as.n+" — "+as.t[i][0]+(localStorage.getItem("tech")?" ("+localStorage.getItem("tech")+")":""));load()}catch(e){er(e)}}
 const dk=(a,u,i)=>a+"_"+u+"_d"+i;
-let uSel={};
+let uSel={},hsel=null;
 const cnt=(a,u)=>DC[a.id].filter((_,i)=>D.checks[dk(a.id,u,i)]).length;
 const dailyDone=a=>{let s=0;for(let u=1;u<=a.q;u++)s+=cnt(a,u);return s+"/"+DC[a.id].length*a.q};
 function selU(a,u){uSel[a]=u;render()}
@@ -85,9 +85,12 @@ const n=new Date().toISOString(),who=getBy(k.split("_")[0],k.split("_")[1])||nul
 try{await api("/rest/v1/daily_checks?on_conflict=check_date,key",{method:"POST",headers:{"Content-Type":"application/json",Prefer:"resolution=ignore-duplicates,return=minimal"},body:JSON.stringify({check_date:today(),key:k,checked_by:who,checked_at:n,status:st,remark:rm||null})})}catch(e){delete D.checks[k];render();er(e)}}
 function askNo(k){if(needBy(k))return;pend[k]=1;render();setTimeout(()=>{const e=document.getElementById("rm_"+k);if(e)e.focus()},50)}
 function cancelNo(k){delete pend[k];const e=document.getElementById("rm_"+k);if(e)e.remove();render()}
+function gridHTML(){return `<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:4px">`+A.map(a=>{const tot=DC[a.id].length*a.q;let dn=0,bad=0;for(let u=1;u<=a.q;u++)DC[a.id].forEach((_,i)=>{const c=D.checks[dk(a.id,u,i)];if(c){dn++;if(c.status=="no")bad++}});
+const col=bad?"var(--er)":dn==tot?"var(--ok)":dn?"var(--wa)":"var(--bd)";
+return `<div class="card tap" onclick="hsel=${a.id};render();scrollTo(0,0)" style="margin:0;padding:12px 4px;text-align:center;border:2px solid ${col}"><div style="font-size:34px;line-height:1.1">${a.i}</div><div style="font-size:12px;font-weight:600;margin:6px 0 2px">${a.n}</div><div class="mu" style="font-size:12px">${dn}/${tot}${bad?` · <span style="color:var(--er)">${bad} ✗</span>`:""}</div></div>`}).join("")+`</div><div class="mu" style="margin:10px 4px">Border: grey = not started · orange = in progress · green = complete · red = problem found</div>`}
 function todayHTML(){let tot=0,dn=0,h="";A.forEach(a=>{tot+=DC[a.id].length*a.q;for(let u=1;u<=a.q;u++)dn+=cnt(a,u)});const pc=tot?Math.round(dn*100/tot):0,bad=Object.values(D.checks).filter(c=>c.status=="no").length;
 h+=`<div class="card"><div class="row"><div class="name">Daily checklist</div><div class="mu">${new Date().toLocaleDateString(undefined,{weekday:"long",day:"numeric",month:"short"})}</div></div><div style="height:8px;background:var(--bd);border-radius:9px"><div style="height:8px;width:${pc}%;background:var(--ok);border-radius:9px"></div></div><div class="mu" style="margin-top:4px">${dn} of ${tot} checks done (${pc}%)${bad?` · <b style="color:var(--er)">${bad} problem${bad>1?"s":""}</b>`:""}</div></div>`;
-A.forEach(a=>{const u=uSel[a.id]||1,n=DC[a.id].length;
+if(!hsel){h+=gridHTML();return h}h=`<div class="row" style="margin:8px 0"><button class="g sm" onclick="hsel=null;render();scrollTo(0,0)">← All equipment</button><span class="mu">${new Date().toLocaleDateString(undefined,{day:"numeric",month:"short"})}</span></div>`;A.filter(x=>x.id==hsel).forEach(a=>{const u=uSel[a.id]||1,n=DC[a.id].length;
 h+=`<div class="card"><div class="row"><div class="name">${a.i} ${a.n}</div><button class="g sm" onclick="openForm(${a.id})">Issue</button></div><div class="mu">${dailyDone(a)} done today${a.q>1?" · tap a unit":""}</div><input id="by_${a.id}_${u}" value="${esc(getBy(a.id,u))}" placeholder="Checked by${a.q>1?" (Unit "+u+")":""} – name required" oninput="setBy(${a.id},${u},this.value)" style="margin:6px 0">`;
 if(a.q>1)h+=`<div style="display:flex;flex-wrap:wrap;gap:6px;margin:8px 0">`+Array.from({length:a.q},(_,j)=>j+1).map(x=>{const d=cnt(a,x)==n;return `<button class="sm ${x==u?"":"g"}" style="${d?"border-color:var(--ok);":""}" onclick="selU(${a.id},${x})">${d?"✓ ":""}Unit ${x}</button>`}).join("")+`</div>`;
 if(a.q>1)h+=`<div class="name" style="margin:6px 0 2px">Unit ${u}</div>`;
@@ -146,6 +149,6 @@ ${cl?"":`<input id="ac${x.id}" placeholder="Action taken to fix (optional)" styl
 else{h+=`<h2>Recent maintenance</h2>`;if(!D.log.length)h+=`<div class="card mu">Nothing recorded yet.</div>`;
 D.log.forEach(x=>h+=`<div class="card"><div>${esc(x.message)}</div><div class="mu">${new Date(x.at).toLocaleString(undefined,{day:"numeric",month:"short",hour:"2-digit",minute:"2-digit"})}</div></div>`)}
 el.innerHTML=h}
-document.querySelectorAll("nav button").forEach(b=>b.onclick=()=>{tab=b.dataset.t;sel=null;form=false;imgs=[];render();scrollTo(0,0)});
+document.querySelectorAll("nav button").forEach(b=>b.onclick=()=>{tab=b.dataset.t;sel=null;hsel=null;form=false;imgs=[];render();scrollTo(0,0)});
 window.onerror=m=>msg("Error: "+m);render();load();setInterval(load,20000);
 </script></body></html>
