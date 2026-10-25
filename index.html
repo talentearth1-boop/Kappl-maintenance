@@ -20,13 +20,14 @@ button.g{background:transparent;color:var(--ac);border:1px solid var(--ac)}butto
 input,select,textarea{width:100%;font:inherit;padding:10px;border-radius:10px;border:1px solid var(--bd);background:var(--bg);color:var(--tx);margin:4px 0 10px}
 label{font-size:13px;color:var(--mu)}h2{font-size:16px;margin:14px 4px 8px}
 nav{position:fixed;bottom:0;left:0;right:0;display:flex;background:var(--card);border-top:1px solid var(--bd);padding-bottom:env(safe-area-inset-bottom)}
-nav button{flex:1;background:none;color:var(--mu);border-radius:0;padding:14px}nav button.on{color:var(--ac);font-weight:700}
+nav button{flex:1;background:none;color:var(--mu);border-radius:0;padding:14px 2px;font-size:13px}nav button.on{color:var(--ac);font-weight:700}
 .th{width:72px;height:72px;object-fit:cover;border-radius:8px;margin:6px 6px 0 0;border:1px solid var(--bd)}
+.mt{border-collapse:collapse;font-size:11px}.mt td,.mt th{border:1px solid var(--bd);padding:3px;text-align:center;min-width:24px}.mt .nm{position:sticky;left:0;background:var(--card);text-align:left;min-width:150px;white-space:nowrap;z-index:1;color:var(--tx)}
 #toast{position:fixed;left:12px;right:12px;bottom:80px;background:var(--tx);color:var(--bg);padding:10px;border-radius:10px;text-align:center;display:none;z-index:50}
 </style></head><body>
 <header><h1>🧵 Plant Maintenance</h1><div class="sub" id="sub">Cocoon to yarn · Silk plant</div></header>
 <main id="app"></main><div id="toast"></div>
-<nav><button data-t="today">Home</button><button data-t="home">Schedule</button><button data-t="issues">Breakdowns</button><button data-t="hist">History</button></nav>
+<nav><button data-t="today">Home</button><button data-t="home">Schedule</button><button data-t="issues">Breakdowns</button><button data-t="rec">Records</button><button data-t="hist">History</button></nav>
 <script>
 const URL_="https://qobaaufupikvfcybqgdh.supabase.co",KEY="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFvYmFhdWZ1cGlrdmZjeWJxZ2RoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTI4NDExMjQsImV4cCI6MjEwODQxNzEyNH0.LWhdUg-BdNmva01lyaL-PPt2TX6FlxEbJqKLphpgvAg";
 const H={apikey:KEY,Authorization:"Bearer "+KEY};
@@ -71,7 +72,7 @@ async function logit(m){await api("/rest/v1/activity_log",{method:"POST",headers
 async function done(a,i){const as=A.find(x=>x.id==a),n=new Date().toISOString();D.done[key(a,i)]=n;render();
 try{await api("/rest/v1/task_done",{method:"POST",headers:{"Content-Type":"application/json",Prefer:"resolution=merge-duplicates,return=minimal"},body:JSON.stringify({key:key(a,i),done_at:n,done_by:localStorage.getItem("tech")||null})});await logit(as.n+" — "+as.t[i][0]+(localStorage.getItem("tech")?" ("+localStorage.getItem("tech")+")":""));load()}catch(e){er(e)}}
 const dk=(a,u,i)=>a+"_"+u+"_d"+i;
-let uSel={},hsel=null;
+let uSel={},hsel=null,recDate=null,recData=null,recMode="day",recMonth=null,monData=null;
 const cnt=(a,u)=>DC[a.id].filter((_,i)=>D.checks[dk(a.id,u,i)]).length;
 const dailyDone=a=>{let s=0;for(let u=1;u<=a.q;u++)s+=cnt(a,u);return s+"/"+DC[a.id].length*a.q};
 function selU(a,u){uSel[a]=u;render()}
@@ -85,6 +86,43 @@ const n=new Date().toISOString(),who=getBy(k.split("_")[0],k.split("_")[1])||nul
 try{await api("/rest/v1/daily_checks?on_conflict=check_date,key",{method:"POST",headers:{"Content-Type":"application/json",Prefer:"resolution=ignore-duplicates,return=minimal"},body:JSON.stringify({check_date:today(),key:k,checked_by:who,checked_at:n,status:st,remark:rm||null})})}catch(e){delete D.checks[k];render();er(e)}}
 function askNo(k){if(needBy(k))return;pend[k]=1;render();setTimeout(()=>{const e=document.getElementById("rm_"+k);if(e)e.focus()},50)}
 function cancelNo(k){delete pend[k];const e=document.getElementById("rm_"+k);if(e)e.remove();render()}
+function parseK(k){const m=k.match(/^(\d+)_(\d+)_d(\d+)$/);if(!m)return null;const a=A.find(x=>x.id==m[1]);if(!a||!DC[a.id][+m[3]])return null;return{a,u:+m[2],t:DC[a.id][+m[3]],i:+m[3]}}
+async function loadRec(){try{recData=await api("/rest/v1/daily_checks?select=*&check_date=eq."+recDate+"&order=key.asc&limit=2000");render()}catch(e){er(e)}}
+async function fetchAll(path){let out=[],o=0;for(;;){const r=await api(path+"&limit=1000&offset="+o);out=out.concat(r);if(r.length<1000)break;o+=1000}return out}
+async function loadMon(){try{const [y,m]=recMonth.split("-").map(Number),last=new Date(y,m,0).getDate();monData=await fetchAll("/rest/v1/daily_checks?select=check_date,key,status,remark&check_date=gte."+recMonth+"-01&check_date=lte."+recMonth+"-"+String(last).padStart(2,"0")+"&order=check_date.asc,key.asc");render()}catch(e){er(e)}}
+function setMode(m){recMode=m;if(m=="mon"&&!monData){recMonth=recMonth||today().slice(0,7);loadMon()}render()}
+function recHTML(){return `<div class="row" style="margin-bottom:10px;gap:8px"><button class="sm ${recMode=="day"?"":"g"}" style="flex:1" onclick="setMode('day')">Daily view</button><button class="sm ${recMode=="mon"?"":"g"}" style="flex:1" onclick="setMode('mon')">Monthly report</button></div>`+(recMode=="day"?dayHTML():monHTML())}
+function monHTML(){let h=`<div class="card"><label>Month</label><input type="month" value="${recMonth}" max="${today().slice(0,7)}" onchange="if(this.value){recMonth=this.value;monData=null;render();loadMon()}"><button class="sm" onclick="csvMon()">⬇ Month (CSV)</button></div>`;
+if(monData===null)return h+`<div class="card mu">Loading…</div>`;
+const [y,m]=recMonth.split("-").map(Number),last=new Date(y,m,0).getDate(),td=today(),cell={};
+monData.forEach(c=>{const p=parseK(c.key);if(!p)return;const d=+c.check_date.slice(8),kk=p.a.id+"_"+p.u+"_"+d,o=cell[kk]=cell[kk]||{n:0,bad:0};o.n++;if(c.status=="no")o.bad++});
+let rows="",miss=0,hd="";for(let d=1;d<=last;d++)hd+=`<th>${d}</th>`;
+A.forEach(a=>{for(let u=1;u<=a.q;u++){const tot=DC[a.id].length;let full=0,el=0,tds="";
+for(let d=1;d<=last;d++){const ds=recMonth+"-"+String(d).padStart(2,"0"),o=cell[a.id+"_"+u+"_"+d];let bg="transparent",tx="";
+if(ds<=td){el++;if(o&&o.n>=tot){full++;bg=o.bad?"var(--er)":"var(--ok)";tx=o.bad?"✗":"✓"}else if(o&&o.n){bg=o.bad?"var(--er)":"var(--wa)";tx=o.n}else{bg="var(--bd)";tx="–"}}
+tds+=`<td style="background:${bg};color:#fff">${tx}</td>`}
+miss+=el-full;rows+=`<tr><td class="nm">${a.i} ${esc(a.n)}${a.q>1?" · U"+u:""}</td><td><b>${full}/${el}</b></td>${tds}</tr>`}});
+const bad=monData.filter(c=>c.status=="no");
+h+=`<div class="card"><b>${monData.length}</b> checks · <b style="color:var(--er)">${bad.length}</b> problems · <b style="color:var(--wa)">${miss}</b> incomplete unit-days</div>`;
+h+=`<div style="overflow-x:auto;margin-bottom:8px"><table class="mt"><tr><th class="nm">Equipment / unit</th><th>Full</th>${hd}</tr>${rows}</table></div><div class="mu" style="margin:0 4px 12px">Green ✓ = all checks done · Red ✗ = problem found · Orange number = checks done (partial) · Grey – = nothing checked · Blank = future date. "Full" = days fully done / days passed.</div>`;
+if(bad.length){h+=`<h2>Problems this month</h2>`;bad.forEach(c=>{const p=parseK(c.key);if(!p)return;h+=`<div class="card"><div class="name">${p.a.i} ${p.a.n}${p.a.q>1?" · Unit "+p.u:""}</div><div class="mu">${f(c.check_date)} · ${p.t}</div><div style="color:var(--er);font-size:13px">Remark: ${esc(c.remark)}</div></div>`})}
+return h}
+function dayHTML(){let h=`<div class="card"><label>Date</label><input type="date" id="rd" value="${recDate}" max="${today()}" onchange="if(this.value){recDate=this.value;recData=null;render();loadRec()}"><div class="row"><button class="sm" onclick="csv(1)">⬇ This date (CSV)</button><button class="sm g" onclick="csv(30)">⬇ 30 days (CSV)</button></div></div>`;
+if(recData===null)return h+`<div class="card mu">Loading…</div>`;
+const g={};recData.forEach(c=>{const p=parseK(c.key);if(!p)return;const gk=p.a.id+"_"+p.u;(g[gk]=g[gk]||{p,rows:[]}).rows.push({c,p})});
+const ks=Object.keys(g);if(!ks.length)return h+`<div class="card mu">No checks recorded on this date.</div>`;
+const bad=recData.filter(c=>c.status=="no").length;
+h+=`<div class="card"><b>${recData.length}</b> checks recorded · <b style="color:var(--er)">${bad}</b> problem${bad==1?"":"s"}</div>`;
+ks.sort((x,y)=>{const a=g[x].p,b=g[y].p;return a.a.id-b.a.id||a.u-b.u}).forEach(k=>{const {p,rows}=g[k];const by=[...new Set(rows.map(x=>x.c.checked_by).filter(Boolean))].join(", ");
+h+=`<div class="card"><div class="name">${p.a.i} ${p.a.n}${p.a.q>1?" · Unit "+p.u:""}</div><div class="mu">${rows.length}/${DC[p.a.id].length} checked${by?" · by "+esc(by):""}</div>`;
+rows.sort((x,y)=>x.p.i-y.p.i).forEach(({c,p})=>{const ok=c.status!="no";h+=`<div style="border-top:1px solid var(--bd);padding:6px 0;margin-top:6px"><div class="row"><span style="font-size:14px">${p.t}</span><span class="pill ${ok?"ok":"er"}">${ok?"✓":"✗"}</span></div>${ok?"":`<div style="color:var(--er);font-size:13px">Remark: ${esc(c.remark)}</div>`}</div>`});h+=`</div>`});return h}
+function csv(days){const to=recDate,fr=new Date(new Date(to+"T00:00:00").getTime()-(days-1)*DAY).toLocaleDateString("en-CA");return csvRange(fr,to)}
+function csvMon(){const [y,m]=recMonth.split("-").map(Number);return csvRange(recMonth+"-01",recMonth+"-"+String(new Date(y,m,0).getDate()).padStart(2,"0"))}
+async function csvRange(fr,to){try{
+const rows=await fetchAll("/rest/v1/daily_checks?select=*&check_date=gte."+fr+"&check_date=lte."+to+"&order=check_date.asc,key.asc");
+const q=v=>'"'+String(v==null?"":v).replace(/"/g,'""')+'"';const o=["Date,Equipment,Unit,Check,Status,Remark,Checked by,Time"];
+rows.forEach(c=>{const p=parseK(c.key);if(!p)return;o.push([c.check_date,p.a.n,p.a.q>1?p.u:"",p.t,c.status=="no"?"NOT OK":"OK",c.remark,c.checked_by,new Date(c.checked_at).toLocaleTimeString()].map(q).join(","))});
+const b=new Blob(["\ufeff"+o.join("\n")],{type:"text/csv"}),a=document.createElement("a");a.href=URL.createObjectURL(b);a.download="plant-checks-"+fr+"_to_"+to+".csv";document.body.appendChild(a);a.click();a.remove();msg("Downloaded "+(o.length-1)+" rows")}catch(e){er(e)}}
 function gridHTML(){return `<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:4px">`+A.map(a=>{const tot=DC[a.id].length*a.q;let dn=0,bad=0;for(let u=1;u<=a.q;u++)DC[a.id].forEach((_,i)=>{const c=D.checks[dk(a.id,u,i)];if(c){dn++;if(c.status=="no")bad++}});
 const col=bad?"var(--er)":dn==tot?"var(--ok)":dn?"var(--wa)":"var(--bd)";
 return `<div class="card tap" onclick="hsel=${a.id};render();scrollTo(0,0)" style="margin:0;padding:12px 4px;text-align:center;border:2px solid ${col}"><div style="font-size:34px;line-height:1.1">${a.i}</div><div style="font-size:12px;font-weight:600;margin:6px 0 2px">${a.n}</div><div class="mu" style="font-size:12px">${dn}/${tot}${bad?` · <span style="color:var(--er)">${bad} ✗</span>`:""}</div></div>`}).join("")+`</div><div class="mu" style="margin:10px 4px">Border: grey = not started · orange = in progress · green = complete · red = problem found</div>`}
@@ -123,7 +161,7 @@ else if(tab=="home"){const a=A.find(x=>x.id==sel);
 h+=`<div class="row" style="margin:8px 0"><button class="g sm" onclick="sel=null;render()">← Back</button><button class="sm" onclick="openForm(${a.id})">Report issue</button></div><h2>${a.i} ${a.n}${a.q>1?" ("+a.q+" units)":""}</h2>`;
 a.t.forEach((t,i)=>{const s=st(a.id,i,t[1]),d=D.done[key(a.id,i)];
 h+=`<div class="card"><div class="row"><div><div class="name">${t[0]}</div><div class="mu">${fq(t[1])} · ${d?"Last: "+f(d):"Not recorded"}</div></div><span class="pill ${s.s}">${s.l}</span></div><button class="sm" style="margin-top:8px" onclick="done(${a.id},${i})">✓ Mark done</button></div>`})}
-else if(tab=="issues"){
+else if(tab=="rec"){h+=recHTML()}else if(tab=="issues"){
 if(form){h+=`<div class="card"><label>Equipment</label><select id="fa">${A.map(a=>`<option value="${a.id}" ${a.id==pre?"selected":""}>${a.n}</option>`).join("")}</select>
 <label>Unit no. (if multiple)</label><input id="fu" placeholder="e.g. Machine 4">
 <label>Priority</label><select id="fp"><option>High</option><option selected>Medium</option><option>Low</option></select>
@@ -149,6 +187,6 @@ ${cl?"":`<input id="ac${x.id}" placeholder="Action taken to fix (optional)" styl
 else{h+=`<h2>Recent maintenance</h2>`;if(!D.log.length)h+=`<div class="card mu">Nothing recorded yet.</div>`;
 D.log.forEach(x=>h+=`<div class="card"><div>${esc(x.message)}</div><div class="mu">${new Date(x.at).toLocaleString(undefined,{day:"numeric",month:"short",hour:"2-digit",minute:"2-digit"})}</div></div>`)}
 el.innerHTML=h}
-document.querySelectorAll("nav button").forEach(b=>b.onclick=()=>{tab=b.dataset.t;sel=null;hsel=null;form=false;imgs=[];render();scrollTo(0,0)});
+document.querySelectorAll("nav button").forEach(b=>b.onclick=()=>{tab=b.dataset.t;sel=null;hsel=null;form=false;imgs=[];if(tab=="rec"){recDate=today();recData=null;loadRec();recMonth=today().slice(0,7);monData=null;if(recMode=="mon")loadMon()}render();scrollTo(0,0)});
 window.onerror=m=>msg("Error: "+m);render();load();setInterval(load,20000);
 </script></body></html>
