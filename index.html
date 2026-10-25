@@ -76,15 +76,19 @@ const cnt=(a,u)=>DC[a.id].filter((_,i)=>D.checks[dk(a.id,u,i)]).length;
 const dailyDone=a=>{let s=0;for(let u=1;u<=a.q;u++)s+=cnt(a,u);return s+"/"+DC[a.id].length*a.q};
 function selU(a,u){uSel[a]=u;render()}
 let pend={};
-async function mark(k,st){const el=document.getElementById("rm_"+k),rm=st=="no"?((el||{}).value||"").trim():"";if(st=="no"&&!rm){msg("Please write a remark describing the problem");return}
-const n=new Date().toISOString(),who=localStorage.getItem("tech")||null;D.checks[k]={key:k,checked_at:n,checked_by:who,status:st,remark:rm||null};delete pend[k];if(el)el.remove();render();
+const getBy=(id,u)=>{try{return localStorage.getItem("by_"+id+"_"+u+"_"+today())||""}catch(e){return""}};
+const setBy=(id,u,v)=>{try{localStorage.setItem("by_"+id+"_"+u+"_"+today(),v.trim())}catch(e){}};
+function needBy(k){const [id,u]=k.split("_");if(getBy(id,u))return false;msg("Enter the Checked by name first");const b=document.getElementById("by_"+id+"_"+u);if(b){b.focus();b.scrollIntoView({block:"center"})}return true}
+
+async function mark(k,st){if(needBy(k))return;const el=document.getElementById("rm_"+k),rm=st=="no"?((el||{}).value||"").trim():"";if(st=="no"&&!rm){msg("Please write a remark describing the problem");return}
+const n=new Date().toISOString(),who=getBy(k.split("_")[0],k.split("_")[1])||null;D.checks[k]={key:k,checked_at:n,checked_by:who,status:st,remark:rm||null};delete pend[k];if(el)el.remove();render();
 try{await api("/rest/v1/daily_checks?on_conflict=check_date,key",{method:"POST",headers:{"Content-Type":"application/json",Prefer:"resolution=ignore-duplicates,return=minimal"},body:JSON.stringify({check_date:today(),key:k,checked_by:who,checked_at:n,status:st,remark:rm||null})})}catch(e){delete D.checks[k];render();er(e)}}
-function askNo(k){pend[k]=1;render();setTimeout(()=>{const e=document.getElementById("rm_"+k);if(e)e.focus()},50)}
+function askNo(k){if(needBy(k))return;pend[k]=1;render();setTimeout(()=>{const e=document.getElementById("rm_"+k);if(e)e.focus()},50)}
 function cancelNo(k){delete pend[k];const e=document.getElementById("rm_"+k);if(e)e.remove();render()}
 function todayHTML(){let tot=0,dn=0,h="";A.forEach(a=>{tot+=DC[a.id].length*a.q;for(let u=1;u<=a.q;u++)dn+=cnt(a,u)});const pc=tot?Math.round(dn*100/tot):0,bad=Object.values(D.checks).filter(c=>c.status=="no").length;
-h+=`<div class="card"><div class="row"><div class="name">Daily checklist</div><div class="mu">${new Date().toLocaleDateString(undefined,{weekday:"long",day:"numeric",month:"short"})}</div></div><div class="mu" style="margin-top:6px">Checked by</div><input id="who" value="${esc(localStorage.getItem("tech")||"")}" placeholder="Your name" onchange="localStorage.setItem('tech',this.value.trim())"><div style="height:8px;background:var(--bd);border-radius:9px"><div style="height:8px;width:${pc}%;background:var(--ok);border-radius:9px"></div></div><div class="mu" style="margin-top:4px">${dn} of ${tot} checks done (${pc}%)${bad?` · <b style="color:var(--er)">${bad} problem${bad>1?"s":""}</b>`:""}</div></div>`;
+h+=`<div class="card"><div class="row"><div class="name">Daily checklist</div><div class="mu">${new Date().toLocaleDateString(undefined,{weekday:"long",day:"numeric",month:"short"})}</div></div><div style="height:8px;background:var(--bd);border-radius:9px"><div style="height:8px;width:${pc}%;background:var(--ok);border-radius:9px"></div></div><div class="mu" style="margin-top:4px">${dn} of ${tot} checks done (${pc}%)${bad?` · <b style="color:var(--er)">${bad} problem${bad>1?"s":""}</b>`:""}</div></div>`;
 A.forEach(a=>{const u=uSel[a.id]||1,n=DC[a.id].length;
-h+=`<div class="card"><div class="row"><div class="name">${a.i} ${a.n}</div><button class="g sm" onclick="openForm(${a.id})">Issue</button></div><div class="mu">${dailyDone(a)} done today${a.q>1?" · tap a unit":""}</div>`;
+h+=`<div class="card"><div class="row"><div class="name">${a.i} ${a.n}</div><button class="g sm" onclick="openForm(${a.id})">Issue</button></div><div class="mu">${dailyDone(a)} done today${a.q>1?" · tap a unit":""}</div><input id="by_${a.id}_${u}" value="${esc(getBy(a.id,u))}" placeholder="Checked by${a.q>1?" (Unit "+u+")":""} – name required" oninput="setBy(${a.id},${u},this.value)" style="margin:6px 0">`;
 if(a.q>1)h+=`<div style="display:flex;flex-wrap:wrap;gap:6px;margin:8px 0">`+Array.from({length:a.q},(_,j)=>j+1).map(x=>{const d=cnt(a,x)==n;return `<button class="sm ${x==u?"":"g"}" style="${d?"border-color:var(--ok);":""}" onclick="selU(${a.id},${x})">${d?"✓ ":""}Unit ${x}</button>`}).join("")+`</div>`;
 if(a.q>1)h+=`<div class="name" style="margin:6px 0 2px">Unit ${u}</div>`;
 DC[a.id].forEach((t,i)=>{const k=dk(a.id,u,i),c=D.checks[k];let r=`<div style="padding:9px 0;border-top:1px solid var(--bd)"><div style="font-size:15px">${t}</div>`;
@@ -106,7 +110,7 @@ imgs=[];form=false;msg("Saved");await load()}catch(e){er(e)}busy=false}
 async function closeI(id){const x=D.issues.find(y=>y.id==id),ac=(document.getElementById("ac"+id)||{}).value||"",n=new Date().toISOString();
 try{await api("/rest/v1/breakdowns?id=eq."+id,{method:"PATCH",headers:{"Content-Type":"application/json",Prefer:"return=minimal"},body:JSON.stringify({restored_at:n,action_taken:ac.trim()||x.action_taken})});await logit("Resolved: "+x.equipment+" — "+x.description);load()}catch(e){er(e)}}
 function render(){document.querySelectorAll("nav button").forEach(b=>b.classList.toggle("on",b.dataset.t==tab));
-if(form&&tab=="issues"&&document.getElementById("fd")||document.activeElement&&document.activeElement.id=="who")return;const el=document.getElementById("app");let h="";
+if(form&&tab=="issues"&&document.getElementById("fd")||document.activeElement&&/^by_/.test(document.activeElement.id))return;const el=document.getElementById("app");let h="";
 if(tab=="today"){h+=todayHTML()}else if(tab=="home"&&!sel){const c=[0,0,0];A.forEach(a=>c[astat(a)]++);const open=D.issues.filter(x=>!x.restored_at).length;
 h+=`<div class="sum"><div><b style="color:var(--ok)">${c[0]}</b><span>Healthy</span></div><div><b style="color:var(--wa)">${c[1]}</b><span>Due soon</span></div><div><b style="color:var(--er)">${c[2]}</b><span>Overdue</span></div></div>`;
 if(open)h+=`<div class="card tap" style="border-color:var(--er)" onclick="tab='issues';render()">⚠️ ${open} open breakdown${open>1?"s":""}</div>`;
