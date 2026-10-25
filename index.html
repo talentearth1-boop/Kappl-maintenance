@@ -23,6 +23,7 @@ nav{position:fixed;bottom:0;left:0;right:0;display:flex;background:var(--card);b
 nav button{flex:1;background:none;color:var(--mu);border-radius:0;padding:14px 2px;font-size:13px}nav button.on{color:var(--ac);font-weight:700}
 .th{width:72px;height:72px;object-fit:cover;border-radius:8px;margin:6px 6px 0 0;border:1px solid var(--bd)}
 .mt{border-collapse:collapse;font-size:11px}.mt td,.mt th{border:1px solid var(--bd);padding:3px;text-align:center;min-width:24px}.mt .nm{position:sticky;left:0;background:var(--card);text-align:left;min-width:150px;white-space:nowrap;z-index:1;color:var(--tx)}
+@media print{nav,header,.noprint,#toast{display:none!important}body{padding:0;background:#fff;color:#000}.card{border:0}div[style*="overflow-x"]{overflow:visible!important}}
 #toast{position:fixed;left:12px;right:12px;bottom:80px;background:var(--tx);color:var(--bg);padding:10px;border-radius:10px;text-align:center;display:none;z-index:50}
 </style></head><body>
 <header><h1>🧵 Plant Maintenance</h1><div class="sub" id="sub">Cocoon to yarn · Silk plant</div></header>
@@ -90,8 +91,8 @@ function parseK(k){const m=k.match(/^(\d+)_(\d+)_d(\d+)$/);if(!m)return null;con
 async function loadRec(){try{recData=await api("/rest/v1/daily_checks?select=*&check_date=eq."+recDate+"&order=key.asc&limit=2000");render()}catch(e){er(e)}}
 async function fetchAll(path){let out=[],o=0;for(;;){const r=await api(path+"&limit=1000&offset="+o);out=out.concat(r);if(r.length<1000)break;o+=1000}return out}
 async function loadMon(){try{const [y,m]=recMonth.split("-").map(Number),last=new Date(y,m,0).getDate();monData=await fetchAll("/rest/v1/daily_checks?select=check_date,key,status,remark&check_date=gte."+recMonth+"-01&check_date=lte."+recMonth+"-"+String(last).padStart(2,"0")+"&order=check_date.asc,key.asc");render()}catch(e){er(e)}}
-function setMode(m){recMode=m;if(m=="mon"&&!monData){recMonth=recMonth||today().slice(0,7);loadMon()}render()}
-function recHTML(){return `<div class="row" style="margin-bottom:10px;gap:8px"><button class="sm ${recMode=="day"?"":"g"}" style="flex:1" onclick="setMode('day')">Daily view</button><button class="sm ${recMode=="mon"?"":"g"}" style="flex:1" onclick="setMode('mon')">Monthly report</button></div>`+(recMode=="day"?dayHTML():monHTML())}
+function setMode(m){recMode=m;recMonth=recMonth||today().slice(0,7);if(m=="mon"&&!monData)loadMon();if(m=="sheet"&&!shData)loadSheet();render()}
+function recHTML(){return `<div class="row" style="margin-bottom:10px;gap:8px"><button class="sm ${recMode=="day"?"":"g"}" style="flex:1" onclick="setMode('day')">Daily</button><button class="sm ${recMode=="mon"?"":"g"}" style="flex:1" onclick="setMode('mon')">Monthly</button><button class="sm ${recMode=="sheet"?"":"g"}" style="flex:1" onclick="setMode('sheet')">Data sheet</button></div>`+(recMode=="day"?dayHTML():recMode=="mon"?monHTML():sheetHTML())}
 function monHTML(){let h=`<div class="card"><label>Month</label><input type="month" value="${recMonth}" max="${today().slice(0,7)}" onchange="if(this.value){recMonth=this.value;monData=null;render();loadMon()}"><button class="sm" onclick="csvMon()">⬇ Month (CSV)</button></div>`;
 if(monData===null)return h+`<div class="card mu">Loading…</div>`;
 const [y,m]=recMonth.split("-").map(Number),last=new Date(y,m,0).getDate(),td=today(),cell={};
@@ -107,6 +108,31 @@ h+=`<div class="card"><b>${monData.length}</b> checks · <b style="color:var(--e
 h+=`<div style="overflow-x:auto;margin-bottom:8px"><table class="mt"><tr><th class="nm">Equipment / unit</th><th>Full</th>${hd}</tr>${rows}</table></div><div class="mu" style="margin:0 4px 12px">Green ✓ = all checks done · Red ✗ = problem found · Orange number = checks done (partial) · Grey – = nothing checked · Blank = future date. "Full" = days fully done / days passed.</div>`;
 if(bad.length){h+=`<h2>Problems this month</h2>`;bad.forEach(c=>{const p=parseK(c.key);if(!p)return;h+=`<div class="card"><div class="name">${p.a.i} ${p.a.n}${p.a.q>1?" · Unit "+p.u:""}</div><div class="mu">${f(c.check_date)} · ${p.t}</div><div style="color:var(--er);font-size:13px">Remark: ${esc(c.remark)}</div></div>`})}
 return h}
+let shA=1,shU=1,shData=null;
+const keysFor=(a,us)=>{const k=[];us.forEach(u=>DC[a].forEach((_,i)=>k.push(dk(a,u,i))));return k.join(",")};
+const mrange=()=>{const [y,m]=recMonth.split("-").map(Number),l=new Date(y,m,0).getDate();return[recMonth+"-01",recMonth+"-"+String(l).padStart(2,"0"),l]};
+const shQ=us=>{const [fr,to]=mrange();return "/rest/v1/daily_checks?select=*&check_date=gte."+fr+"&check_date=lte."+to+"&key=in.("+keysFor(shA,us)+")&order=check_date.asc,key.asc"};
+async function loadSheet(){try{shData=await fetchAll(shQ([shU]));render()}catch(e){er(e)}}
+function dl(o,name){const b=new Blob(["\ufeff"+o.join("\n")],{type:"text/csv"}),a=document.createElement("a");a.href=URL.createObjectURL(b);a.download=name;document.body.appendChild(a);a.click();a.remove()}
+async function csvSheet(all){try{const a=A.find(x=>x.id==shA),us=all?Array.from({length:a.q},(_,j)=>j+1):[shU],rows=await fetchAll(shQ(us));
+const q=v=>'"'+String(v==null?"":v).replace(/"/g,'""')+'"',o=["Date,Equipment,Unit,No,Check,Status,Remark,Checked by,Time"];
+rows.forEach(c=>{const p=parseK(c.key);if(!p)return;o.push([c.check_date,a.n,a.q>1?p.u:"",p.i+1,p.t,c.status=="no"?"NOT OK":"OK",c.remark,c.checked_by,new Date(c.checked_at).toLocaleTimeString()].map(q).join(","))});
+dl(o,a.n.replace(/[^a-z0-9]+/gi,"-")+(all?"":(a.q>1?"-unit"+shU:""))+"_"+recMonth+".csv");msg("Downloaded "+(o.length-1)+" rows")}catch(e){er(e)}}
+function sheetHTML(){const a=A.find(x=>x.id==shA),l=mrange()[2],tot=DC[a.id].length;
+let h=`<div class="card noprint"><label>Equipment</label><select onchange="shA=+this.value;shU=1;shData=null;render();loadSheet()">${A.map(x=>`<option value="${x.id}" ${x.id==shA?"selected":""}>${x.n}</option>`).join("")}</select>`;
+if(a.q>1)h+=`<label>Unit</label><select onchange="shU=+this.value;shData=null;render();loadSheet()">${Array.from({length:a.q},(_,j)=>j+1).map(u=>`<option value="${u}" ${u==shU?"selected":""}>Unit ${u}</option>`).join("")}</select>`;
+h+=`<label>Month</label><input type="month" value="${recMonth}" max="${today().slice(0,7)}" onchange="if(this.value){recMonth=this.value;shData=null;render();loadSheet()}"><div class="row" style="gap:8px;flex-wrap:wrap"><button class="sm" onclick="csvSheet(0)">⬇ This sheet (CSV)</button>${a.q>1?`<button class="sm g" onclick="csvSheet(1)">⬇ All units (CSV)</button>`:""}<button class="sm g" onclick="window.print()">🖨 Print / PDF</button></div></div>`;
+if(shData===null)return h+`<div class="card mu">Loading…</div>`;
+const cell={},info={};shData.forEach(c=>{const p=parseK(c.key);if(!p)return;const d=+c.check_date.slice(8);cell[p.i+"_"+d]=c;const o=info[d]=info[d]||{by:new Set(),n:0,bad:[]};o.n++;if(c.checked_by)o.by.add(c.checked_by);if(c.status=="no")o.bad.push(p.t+": "+(c.remark||""))});
+const mn=new Date(recMonth+"-01T00:00:00").toLocaleDateString(undefined,{month:"long",year:"numeric"});
+h+=`<div class="card"><div class="name" style="font-size:17px">${a.i} ${a.n}${a.q>1?" – Unit "+shU:""}</div><div class="mu">Daily checklist data sheet · ${mn}</div></div>`;
+let hd="",rows="";for(let d=1;d<=l;d++)hd+=`<th>${d}</th>`;
+DC[a.id].forEach((t,i)=>{let tds="";for(let d=1;d<=l;d++){const c=cell[i+"_"+d];tds+=c?`<td style="background:${c.status=="no"?"var(--er)":"var(--ok)"};color:#fff">${c.status=="no"?"✗":"✓"}</td>`:`<td></td>`}rows+=`<tr><td class="nm">${i+1}. ${t}</td>${tds}</tr>`});
+let dn="";for(let d=1;d<=l;d++)dn+=`<td><b>${info[d]?info[d].n:""}</b></td>`;
+h+=`<div style="overflow-x:auto;margin-bottom:8px"><table class="mt"><tr><th class="nm">Check item</th>${hd}</tr>${rows}<tr><td class="nm"><b>Checks done (of ${tot})</b></td>${dn}</tr></table></div><div class="mu" style="margin:0 4px 10px">✓ = OK · ✗ = Not OK · blank = not checked</div>`;
+const ds=Object.keys(info).map(Number).sort((x,y)=>x-y);
+if(ds.length){h+=`<h2>Checked by &amp; remarks</h2><div style="overflow-x:auto"><table class="mt" style="width:100%"><tr><th>Date</th><th>Checked by</th><th>Done</th><th>Remarks</th></tr>`+ds.map(d=>{const o=info[d];return `<tr><td>${d}</td><td style="text-align:left">${esc([...o.by].join(", "))}</td><td>${o.n}/${tot}</td><td style="text-align:left;color:var(--er)">${esc(o.bad.join("; "))}</td></tr>`}).join("")+`</table></div>`}
+else h+=`<div class="card mu">No checks recorded for this month.</div>`;return h}
 function dayHTML(){let h=`<div class="card"><label>Date</label><input type="date" id="rd" value="${recDate}" max="${today()}" onchange="if(this.value){recDate=this.value;recData=null;render();loadRec()}"><div class="row"><button class="sm" onclick="csv(1)">⬇ This date (CSV)</button><button class="sm g" onclick="csv(30)">⬇ 30 days (CSV)</button></div></div>`;
 if(recData===null)return h+`<div class="card mu">Loading…</div>`;
 const g={};recData.forEach(c=>{const p=parseK(c.key);if(!p)return;const gk=p.a.id+"_"+p.u;(g[gk]=g[gk]||{p,rows:[]}).rows.push({c,p})});
@@ -187,6 +213,6 @@ ${cl?"":`<input id="ac${x.id}" placeholder="Action taken to fix (optional)" styl
 else{h+=`<h2>Recent maintenance</h2>`;if(!D.log.length)h+=`<div class="card mu">Nothing recorded yet.</div>`;
 D.log.forEach(x=>h+=`<div class="card"><div>${esc(x.message)}</div><div class="mu">${new Date(x.at).toLocaleString(undefined,{day:"numeric",month:"short",hour:"2-digit",minute:"2-digit"})}</div></div>`)}
 el.innerHTML=h}
-document.querySelectorAll("nav button").forEach(b=>b.onclick=()=>{tab=b.dataset.t;sel=null;hsel=null;form=false;imgs=[];if(tab=="rec"){recDate=today();recData=null;loadRec();recMonth=today().slice(0,7);monData=null;if(recMode=="mon")loadMon()}render();scrollTo(0,0)});
+document.querySelectorAll("nav button").forEach(b=>b.onclick=()=>{tab=b.dataset.t;sel=null;hsel=null;form=false;imgs=[];if(tab=="rec"){recDate=today();recData=null;loadRec();recMonth=today().slice(0,7);monData=null;if(recMode=="mon")loadMon();shData=null;if(recMode=="sheet")loadSheet()}render();scrollTo(0,0)});
 window.onerror=m=>msg("Error: "+m);render();load();setInterval(load,20000);
 </script></body></html>
